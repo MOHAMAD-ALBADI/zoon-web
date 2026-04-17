@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZONE | Sovereign 3D Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Tajawal:wght@200;400;700;900&family=Montserrat:wght@200;700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --accent: #ffffff;
+            --bg: #000000;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Tajawal', sans-serif;
+            cursor: none;
+        }
+
+        /* 3D Canvas Background */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* Cinematic Noise Overlay */
+        .noise {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.04;
+            background: url('https://grainy-gradients.vercel.app/noise.svg');
+        }
+
+        /* Custom Cursor */
+        .cursor-dot {
+            position: fixed;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            mix-blend-mode: difference;
+            transition: width 0.2s, height 0.2s;
+        }
+
+        .cursor-ring {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease-out;
+            mix-blend-mode: difference;
+        }
+
+        /* Slide Styles */
+        .slide {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: none;
+            opacity: 0;
+            padding: 5rem 10%;
+            align-items: center;
+        }
+
+        .slide.active {
+            display: flex;
+            opacity: 1;
+            animation: slideFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.98);
+                filter: blur(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+        }
+
+        /* Typography */
+        .mega-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(4rem, 10vw, 12rem);
+            line-height: 0.85;
+            letter-spacing: -0.05em;
+            background: linear-gradient(180deg, #FFFFFF 20%, #444444 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .glass-card {
+            background: rgba(10, 10, 10, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 2.5rem;
+            transition: all 0.4s ease;
+        }
+
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-5px);
+        }
+
+        /* Navigation */
+        .progress-container {
+            position: fixed;
+            bottom: 40px;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 100;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #fff;
+            width: 0%;
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .nav-btn {
+            pointer-events: auto;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: white;
+            color: black;
+            transform: scale(1.1);
+        }
+
+        .interactive-hover:hover~.cursor-dot {
+            width: 40px;
+            height: 40px;
+            mix-blend-mode: difference;
+        }
+
+        /* Layout Utilities */
+        .split-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            width: 100%;
+            align-items: center;
+        }
+
+        @media (max-width: 1024px) {
+            .split-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="noise"></div>
+    <div id="canvas-container"></div>
+    <div class="cursor-dot" id="cursorDot"></div>
+    <div class="cursor-ring" id="cursorRing"></div>
+
+    <!-- Top Navigation -->
+    <header class="fixed top-0 w-full px-[10%] py-8 z-[100] flex justify-between items-start pointer-events-none">
+        <div class="pointer-events-auto">
+            <div class="font-black tracking-[0.4em] text-2xl italic font-montserrat">ZONE</div>
+            <div class="text-[9px] font-bold text-white/40 tracking-[0.3em] uppercase mt-1" id="topTag">AL-BADI &
+                AL-KAABI GROUP</div>
+        </div>
+        <div class="flex flex-col items-end gap-3 pointer-events-auto">
+            <button onclick="toggleLang()"
+                class="interactive-hover text-[10px] font-black border border-white/20 px-6 py-2 rounded-full hover:bg-white hover:text-black transition-all"
+                id="langBtn">EN</button>
+            <div class="text-[10px] font-mono opacity-50" id="counter">01 / 09</div>
+        </div>
+    </header>
+
+    <main class="relative w-full h-screen">
+
+        <!-- 01: HERO -->
+        <section class="slide active justify-center text-center" id="slide-0">
+            <div class="space-y-6">
+                <p class="text-xs md:text-sm font-bold tracking-[0.8em] text-white/50 uppercase" id="s0-sub1">الجيل
+                    القادم من الاقتصاد الجامعي</p>
+                <h1 class="mega-title italic">ZONE</h1>
+                <p class="text-2xl md:text-4xl font-light tracking-[0.2em] uppercase opacity-80" id="s0-sub2">سيادة
+                    الموهبة والأثر</p>
+            </div>
+        </section>
+
+        <!-- 02: THE PROBLEM -->
+        <section class="slide" id="slide-1">
+            <div class="split-layout">
+                <div class="space-y-8">
+                    <div class="w-16 h-1 bg-white/20"></div>
+                    <h2 class="text-5xl md:text-7xl font-black italic" id="s1-t">النموذج التقليدي يحتضر</h2>
+                    <p class="text-2xl md:text-3xl font-light leading-relaxed opacity-70" id="s1-d">
+                        الجامعات تخرج آلاف الطلاب المجهزين بـ <span class="text-white font-bold">"النظريات"</span>،
+                        بينما السوق يبحث بشراسة عن <span
+                            class="text-white font-bold border-b border-white">"الممارسين"</span>.
+                        نحن في ZONE نلغي هذه الفجوة ونبني الممارس من اليوم الأول.
+                    </p>
+                </div>
+                <div></div> <!-- Empty for 3D visibility -->
+            </div>
+        </section>
+
+        <!-- 03: THE ECOSYSTEM (HUBS) -->
+        <section class="slide flex-col justify-center" id="slide-2">
+            <div class="text-center mb-12">
+                <h2 class="text-5xl md:text-6xl font-black italic mb-4" id="s2-t">المصفاة الرقمية</h2>
+                <p class="text-xl opacity-50 tracking-widest uppercase" id="s2-st">ثلاثة قطاعات، اقتصاد واحد</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-6 w-full max-w-7xl">
+                <div class="glass-card interactive-hover text-center">
+                    <div class="text-5xl mb-6">⚙️</div>
+                    <h3 class="text-2xl font-black mb-4 s2-h1">Engineering Hub</h3>
+                    <p class="text-sm opacity-60 leading-relaxed s2-p1">بنية تحتية برمجية، ذكاء اصطناعي، وهندسة نظم
+                        معقدة لعملاء حقيقيين. نحول المبرمج من طالب إلى مهندس حلول.</p>
+                </div>
+                <div class="glass-card interactive-hover text-center">
+                    <div class="text-5xl mb-6">🎬</div>
+                    <h3 class="text-2xl font-black mb-4 s2-h2">Studio Hub</h3>
+                    <p class="text-sm opacity-60 leading-relaxed s2-p2">إنتاج سينمائي، هوية بصرية فاخرة، وتجارب مستخدم
+                        (UI/UX) تنافس الوكالات العالمية.</p>
+                </div>
+                <div class="glass-card interactive-hover text-center">
+                    <div class="text-5xl mb-6">🧠</div>
+                    <h3 class="text-2xl font-black mb-4 s2-h3">Academy Hub</h3>
+                    <p class="text-sm opacity-60 leading-relaxed s2-p3">معسكرات نقل المعرفة بين النخبة (Peer-to-Peer).
+                        تدريب مكثف يضمن أن كل عضو يرفع مستوى من حوله.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 04: ALPHA PROTOCOL -->
+        <section class="slide" id="slide-3">
+            <div class="split-layout">
+                <div></div> <!-- Empty -->
+                <div class="space-y-10">
+                    <h2 class="text-6xl font-black italic" id="s3-t">بروتوكول Alpha</h2>
+                    <p class="text-xl opacity-60" id="s3-st">نظام التحقق الصارم لضمان الجودة وبناء الثقة مع سوق العمل.
+                    </p>
+                    <div class="space-y-6">
+                        <div class="flex items-center gap-6 glass-card !p-4 !rounded-xl">
+                            <span class="text-2xl font-mono opacity-40">01</span>
+                            <div class="text-lg font-bold s3-l1">تسجيل الموهبة وفحص المهارة (Vibe-Check)</div>
+                        </div>
+                        <div class="flex items-center gap-6 glass-card !p-4 !rounded-xl">
+                            <span class="text-2xl font-mono opacity-40">02</span>
+                            <div class="text-lg font-bold s3-l2">تنفيذ مشروع تجريبي مصغر (Proof of Work)</div>
+                        </div>
+                        <div class="flex items-center gap-6 glass-card !p-4 !rounded-xl border-white/40">
+                            <span class="text-2xl font-mono text-white">03</span>
+                            <div class="text-lg font-bold text-white s3-l3">إصدار بطاقة النخبة (Alpha Pass)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 05: ECONOMIC ENGINE -->
+        <section class="slide flex-col justify-center" id="slide-4">
+            <h2 class="text-5xl md:text-7xl font-black italic text-center mb-16" id="s4-t">محرك الاستدامة المالية</h2>
+            <div class="grid md:grid-cols-2 gap-8 w-full max-w-6xl">
+                <div class="glass-card border-t-4 border-t-white">
+                    <h3 class="text-3xl font-black mb-4 s4-h1">خدمات B2B المباشرة</h3>
+                    <p class="text-lg opacity-60 leading-relaxed s4-p1">نستقبل مشاريع تقنية وتصميمية من شركات السلطنة،
+                        يتم تنفيذها عبر طلبة ZONE النخبة بمقابل مالي، مما يدر أرباحاً للمنصة وللطالب في آن واحد.</p>
+                </div>
+                <div class="glass-card border-t-4 border-t-white/40">
+                    <h3 class="text-3xl font-black mb-4 s4-h2">رعايات الاستحواذ المسبق</h3>
+                    <p class="text-lg opacity-60 leading-relaxed s4-p2">توقيع عقود رعاية مع شركات كبرى لتمويل "معسكرات
+                        محددة" داخل ZONE، مقابل حصولهم على أولوية حصرية لتوظيف الخريجين.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 06: ROADMAP 2026 -->
+        <section class="slide" id="slide-5">
+            <div class="w-full max-w-5xl mx-auto space-y-12">
+                <h2 class="text-6xl font-black italic mb-8" id="s5-t">خارطة التوسع 2026</h2>
+                <div class="relative border-r-2 border-white/20 pr-8 space-y-12" id="roadmap-container">
+                    <!-- Controlled by CSS logic for RTL/LTR -->
+                    <div class="relative">
+                        <div class="absolute -right-[41px] top-2 w-4 h-4 bg-white rounded-full"></div>
+                        <h4 class="text-3xl font-bold s5-q1t">الربع الأول</h4>
+                        <p class="text-xl opacity-60 mt-2 s5-q1d">إطلاق المنصة، تسجيل النخبة الأولى، وإصدار بطاقات
+                            Alpha.</p>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class="absolute -right-[41px] top-2 w-4 h-4 bg-black border-2 border-white/50 rounded-full">
+                        </div>
+                        <h4 class="text-3xl font-bold opacity-60 s5-q2t">الربع الثاني</h4>
+                        <p class="text-xl opacity-40 mt-2 s5-q2d">توقيع أول 3 عقود B2B لمشاريع حقيقية وتوجيهها لفرق
+                            ZONE.</p>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class="absolute -right-[41px] top-2 w-4 h-4 bg-black border-2 border-white/20 rounded-full">
+                        </div>
+                        <h4 class="text-3xl font-bold opacity-40 s5-q3t">الربع الثالث</h4>
+                        <p class="text-xl opacity-30 mt-2 s5-q3d">التكامل الإقليمي وتوسيع النموذج ليشمل جامعات أخرى.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 07: STRATEGIC IMPACT -->
+        <section class="slide flex-col justify-center text-center" id="slide-6">
+            <h2 class="text-6xl font-black italic mb-16" id="s6-t">الأثر الاستراتيجي لـ BUC</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-6xl">
+                <div class="glass-card !p-8">
+                    <div class="text-5xl font-black mb-2">#1</div>
+                    <div class="text-sm opacity-50 s6-1">الابتكار الجامعي</div>
+                </div>
+                <div class="glass-card !p-8">
+                    <div class="text-5xl font-black mb-2">100%</div>
+                    <div class="text-sm opacity-50 s6-2">توثيق للمهارات</div>
+                </div>
+                <div class="glass-card !p-8">
+                    <div class="text-5xl font-black mb-2">+80%</div>
+                    <div class="text-sm opacity-50 s6-3">فرص توظيف مبكر</div>
+                </div>
+                <div class="glass-card !p-8">
+                    <div class="text-5xl font-black mb-2">Eco</div>
+                    <div class="text-sm opacity-50 s6-4">اقتصاد مستدام</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 08: LEADERSHIP -->
+        <section class="slide flex-col justify-center text-center" id="slide-7">
+            <div class="w-24 h-24 border border-white/20 rounded-full flex items-center justify-center mx-auto mb-8">
+                <div class="w-16 h-16 bg-white rounded-full animate-pulse"></div>
+            </div>
+            <h2 class="text-4xl md:text-6xl font-black italic mb-6 uppercase tracking-tighter" id="s7-t">قيادة الرؤية
+            </h2>
+            <p class="text-2xl md:text-4xl font-light tracking-[0.3em] opacity-80 mb-8 font-montserrat">AL-BADI &
+                AL-KAABI</p>
+            <p class="max-w-2xl mx-auto text-xl opacity-50 leading-relaxed" id="s7-d">
+                تحالف استراتيجي يهدف إلى إعادة هيكلة الإمكانيات الطلابية وتحويلها إلى قوة دافعة للاقتصاد الرقمي في سلطنة
+                عمان.
+            </p>
+        </section>
+
+        <!-- 09: INITIALIZE -->
+        <section class="slide justify-center items-center text-center" id="slide-8">
+            <div>
+                <h1 class="mega-title italic mb-8">INIT</h1>
+                <p class="text-3xl font-light tracking-[0.5em] uppercase opacity-70 mb-12" id="s8-sub">يبدأ العصر الجديد
+                    يوم الأحد</p>
+                <button
+                    class="interactive-hover px-12 py-5 bg-white text-black font-black text-2xl uppercase tracking-widest rounded-full hover:scale-105 transition-transform">
+                    <span id="s8-btn">انضم للنخبة</span>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Controls -->
+    <footer class="progress-container flex items-center justify-between">
+        <div class="w-full h-full bg-white/10 absolute left-0 top-0">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="fixed bottom-8 right-[10%] flex gap-4 z-[101]">
+            <button onclick="prev()" class="nav-btn interactive-hover">←</button>
+            <button onclick="next()" class="nav-btn interactive-hover">→</button>
+        </div>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const total = slides.length;
+        let lang = 'AR';
+
+        // --- Content Dictionary ---
+        const content = {
+            AR: {
+                top: "مجموعة البادي والكعبي",
+                s0: ["الجيل القادم من الاقتصاد الجامعي", "سيادة الموهبة والأثر"],
+                s1: ["النموذج التقليدي يحتضر", "الجامعات تخرج آلاف الطلاب المجهزين بـ <span class='text-white font-bold'>النظريات</span>، بينما السوق يبحث بشراسة عن <span class='text-white font-bold border-b border-white'>الممارسين</span>. نحن في ZONE نلغي هذه الفجوة ونبني الممارس من اليوم الأول."],
+                s2: { t: "المصفاة الرقمية", st: "ثلاثة قطاعات، اقتصاد واحد", h1: "قطاع الهندسة", p1: "بنية تحتية برمجية، ذكاء اصطناعي، وهندسة نظم معقدة لعملاء حقيقيين. نحول المبرمج من طالب إلى مهندس حلول.", h2: "قطاع الاستوديو", p2: "إنتاج سينمائي، هوية بصرية فاخرة، وتجارب مستخدم تنافس الوكالات العالمية.", h3: "قطاع الأكاديمية", p3: "معسكرات نقل المعرفة بين النخبة. تدريب مكثف يضمن أن كل عضو يرفع مستوى من حوله." },
+                s3: { t: "بروتوكول Alpha", st: "نظام التحقق الصارم لضمان الجودة وبناء الثقة مع سوق العمل.", l1: "تسجيل الموهبة وفحص المهارة (Vibe-Check)", l2: "تنفيذ مشروع تجريبي مصغر (Proof of Work)", l3: "إصدار بطاقة النخبة (Alpha Pass)" },
+                s4: { t: "محرك الاستدامة المالية", h1: "خدمات B2B المباشرة", p1: "نستقبل مشاريع تقنية وتصميمية من شركات السلطنة، يتم تنفيذها عبر طلبة ZONE النخبة بمقابل مالي، مما يدر أرباحاً للمنصة وللطالب في آن واحد.", h2: "رعايات الاستحواذ المسبق", p2: "توقيع عقود رعاية مع شركات كبرى لتمويل معسكرات محددة داخل ZONE، مقابل حصولهم على أولوية حصرية لتوظيف الخريجين." },
+                s5: { t: "خارطة التوسع 2026", q1t: "الربع الأول", q1d: "إطلاق المنصة، تسجيل النخبة الأولى، وإصدار بطاقات Alpha.", q2t: "الربع الثاني", q2d: "توقيع أول 3 عقود B2B لمشاريع حقيقية وتوجيهها لفرق ZONE.", q3t: "الربع الثالث", q3d: "التكامل الإقليمي وتوسيع النموذج ليشمل جامعات أخرى." },
+                s6: { t: "الأثر الاستراتيجي لـ BUC", s1: "الابتكار الجامعي", s2: "توثيق للمهارات", s3: "فرص توظيف مبكر", s4: "اقتصاد مستدام" },
+                s7: { t: "قيادة الرؤية", d: "تحالف استراتيجي يهدف إلى إعادة هيكلة الإمكانيات الطلابية وتحويلها إلى قوة دافعة للاقتصاد الرقمي في سلطنة عمان." },
+                s8: { sub: "يبدأ العصر الجديد يوم الأحد", btn: "انضم للنخبة" }
+            },
+            EN: {
+                top: "AL-BADI & AL-KAABI GROUP",
+                s0: ["THE NEXT-GEN CAMPUS ECONOMY", "SOVEREIGNTY OF TALENT & IMPACT"],
+                s1: ["THE TRADITIONAL MODEL IS DYING", "Universities graduate thousands equipped with <span class='text-white font-bold'>Theories</span>, while the market fiercely hunts for <span class='text-white font-bold border-b border-white'>Practitioners</span>. At ZONE, we eliminate this gap and build practitioners from day one."],
+                s2: { t: "THE DIGITAL REFINERY", st: "THREE SECTORS, ONE ECONOMY", h1: "Engineering Hub", p1: "Software infrastructure, AI, and complex systems for real clients. We turn students into solution architects.", h2: "Studio Hub", p2: "Cinematic production, luxury visual identity, and UX rivaling global agencies.", h3: "Academy Hub", p3: "Peer-to-peer knowledge transfer bootcamps ensuring every member elevates those around them." },
+                s3: { t: "ALPHA PROTOCOL", st: "Strict verification system to ensure quality and build market trust.", l1: "Talent Registration & Vibe-Check", l2: "Mini-Project Execution (Proof of Work)", l3: "Issuance of Elite Alpha Pass" },
+                s4: { t: "FINANCIAL SUSTAINABILITY ENGINE", h1: "Direct B2B Services", p1: "We take tech and design projects from Omani companies, executed by ZONE elite students for a fee, generating profit for both the platform and the student.", h2: "Pre-Acquisition Sponsorships", p2: "Signing deals with major corporations to fund specific bootcamps in exchange for exclusive priority hiring of graduates." },
+                s5: { t: "EXPANSION ROADMAP 2026", q1t: "First Quarter", q1d: "Platform launch, onboarding the first elite cohort, and issuing Alpha passes.", q2t: "Second Quarter", q2d: "Signing the first 3 B2B contracts for real projects directed to ZONE teams.", q3t: "Third Quarter", q3d: "Regional integration and expanding the model to other universities." },
+                s6: { t: "STRATEGIC IMPACT ON BUC", s1: "Campus Innovation", s2: "Skill Verification", s3: "Early Hiring", s4: "Sustainable Eco" },
+                s7: { t: "VISION LEADERSHIP", d: "A strategic alliance aiming to restructure student potential into a driving force for the digital economy in Oman." },
+                s8: { sub: "THE NEW ERA BEGINS SUNDAY", btn: "JOIN THE ELITE" }
+            }
+        };
+
+        // --- Core Logic ---
+        function update() {
+            slides.forEach((s, i) => {
+                s.classList.toggle('active', i === currentSlide);
+            });
+            document.getElementById('counter').innerText = `0${currentSlide + 1} / 0${total}`;
+            document.getElementById('progressBar').style.width = `${((currentSlide + 1) / total) * 100}%`;
+        }
+
+        function next() { currentSlide = (currentSlide + 1) % total; update(); }
+        function prev() { currentSlide = (currentSlide - 1 + total) % total; update(); }
+
+        function toggleLang() {
+            lang = lang === 'AR' ? 'EN' : 'AR';
+            document.documentElement.dir = lang === 'AR' ? 'rtl' : 'ltr';
+            document.getElementById('langBtn').innerText = lang === 'AR' ? 'EN' : 'AR';
+
+            // Fix borders for Roadmap based on RTL/LTR
+            const roadmap = document.getElementById('roadmap-container');
+            if (lang === 'AR') {
+                roadmap.classList.remove('border-l-2', 'pl-8');
+                roadmap.classList.add('border-r-2', 'pr-8');
+                roadmap.querySelectorAll('.absolute').forEach(el => {
+                    el.classList.remove('-left-[41px]'); el.classList.add('-right-[41px]');
+                });
+            } else {
+                roadmap.classList.remove('border-r-2', 'pr-8');
+                roadmap.classList.add('border-l-2', 'pl-8');
+                roadmap.querySelectorAll('.absolute').forEach(el => {
+                    el.classList.remove('-right-[41px]'); el.classList.add('-left-[41px]');
+                });
+            }
+            apply();
+        }
+
+        function apply() {
+            const c = content[lang];
+            document.getElementById('topTag').innerText = c.top;
+            document.getElementById('s0-sub1').innerText = c.s0[0]; document.getElementById('s0-sub2').innerText = c.s0[1];
+            document.getElementById('s1-t').innerText = c.s1[0]; document.getElementById('s1-d').innerHTML = c.s1[1];
+
+            document.getElementById('s2-t').innerText = c.s2.t; document.getElementById('s2-st').innerText = c.s2.st;
+            document.querySelector('.s2-h1').innerText = c.s2.h1; document.querySelector('.s2-p1').innerText = c.s2.p1;
+            document.querySelector('.s2-h2').innerText = c.s2.h2; document.querySelector('.s2-p2').innerText = c.s2.p2;
+            document.querySelector('.s2-h3').innerText = c.s2.h3; document.querySelector('.s2-p3').innerText = c.s2.p3;
+
+            document.getElementById('s3-t').innerText = c.s3.t; document.getElementById('s3-st').innerText = c.s3.st;
+            document.querySelector('.s3-l1').innerText = c.s3.l1; document.querySelector('.s3-l2').innerText = c.s3.l2; document.querySelector('.s3-l3').innerText = c.s3.l3;
+
+            document.getElementById('s4-t').innerText = c.s4.t;
+            document.querySelector('.s4-h1').innerText = c.s4.h1; document.querySelector('.s4-p1').innerText = c.s4.p1;
+            document.querySelector('.s4-h2').innerText = c.s4.h2; document.querySelector('.s4-p2').innerText = c.s4.p2;
+
+            document.getElementById('s5-t').innerText = c.s5.t;
+            document.querySelector('.s5-q1t').innerText = c.s5.q1t; document.querySelector('.s5-q1d').innerText = c.s5.q1d;
+            document.querySelector('.s5-q2t').innerText = c.s5.q2t; document.querySelector('.s5-q2d').innerText = c.s5.q2d;
+            document.querySelector('.s5-q3t').innerText = c.s5.q3t; document.querySelector('.s5-q3d').innerText = c.s5.q3d;
+
+            document.getElementById('s6-t').innerText = c.s6.t;
+            document.querySelector('.s6-1').innerText = c.s6.s1; document.querySelector('.s6-2').innerText = c.s6.s2; document.querySelector('.s6-3').innerText = c.s6.s3; document.querySelector('.s6-4').innerText = c.s6.s4;
+
+            document.getElementById('s7-t').innerText = c.s7.t; document.getElementById('s7-d').innerText = c.s7.d;
+
+            document.getElementById('s8-sub').innerText = c.s8.sub; document.getElementById('s8-btn').innerText = c.s8.btn;
+        }
+
+        // --- Custom Cursor ---
+        const cursorDot = document.getElementById('cursorDot');
+        const cursorRing = document.getElementById('cursorRing');
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX; mouseY = e.clientY;
+            cursorDot.style.left = mouseX + 'px'; cursorDot.style.top = mouseY + 'px';
+            cursorRing.style.left = mouseX + 'px'; cursorRing.style.top = mouseY + 'px';
+        });
+
+        // --- THREE.JS 3D PARTICLE NETWORK (THE WOW FACTOR) ---
+        const init3D = () => {
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.001);
+
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 2000);
+            camera.position.z = 1000;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            // Create Particles
+            const geometry = new THREE.BufferGeometry();
+            const particlesCount = 800; // Dense network
+            const posArray = new Float32Array(particlesCount * 3);
+
+            for (let i = 0; i < particlesCount * 3; i++) {
+                // Create a sphere distribution
+                posArray[i] = (Math.random() - 0.5) * 2500;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const material = new THREE.PointsMaterial({
+                size: 4,
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+
+            const particlesMesh = new THREE.Points(geometry, material);
+            scene.add(particlesMesh);
+
+            // Create connecting lines (Wireframe Sphere inside)
+            const wireGeom = new THREE.IcosahedronGeometry(600, 2);
+            const wireMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff, wireframe: true, transparent: true, opacity: 0.05
+            });
+            const wireSphere = new THREE.Mesh(wireGeom, wireMat);
+            scene.add(wireSphere);
+
+            // Animation Loop
+            let targetX = 0; let targetY = 0;
+            const windowHalfX = window.innerWidth / 2;
+            const windowHalfY = window.innerHeight / 2;
+
+            document.addEventListener('mousemove', (event) => {
+                targetX = (event.clientX - windowHalfX) * 0.5;
+                targetY = (event.clientY - windowHalfY) * 0.5;
+            });
+
+            const animate = () => {
+                requestAnimationFrame(animate);
+                // Smooth rotation towards mouse
+                particlesMesh.rotation.y += 0.002;
+                particlesMesh.rotation.x += 0.001;
+
+                wireSphere.rotation.y += 0.001;
+                wireSphere.rotation.x += 0.0005;
+
+                // Parallax effect based on mouse
+                camera.position.x += (targetX - camera.position.x) * 0.02;
+                camera.position.y += (-targetY - camera.position.y) * 0.02;
+                camera.lookAt(scene.position);
+
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        // --- Initialize ---
+        window.onload = () => {
+            init3D();
+            update();
+        };
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') lang === 'AR' ? prev() : next();
+            if (e.key === 'ArrowLeft') lang === 'AR' ? next() : prev();
+        });
+    </script>
+
+</body>
+
+</html>
