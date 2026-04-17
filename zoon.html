@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZONE | تجربة النخبة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&family=Montserrat:wght@700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --accent: #ffffff;
+            --bg: #000000;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #fff;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Tajawal', sans-serif;
+            touch-action: none;
+            /* منع التمرير الافتراضي لدعم السحب */
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.5;
+        }
+
+        /* شريحة العرض */
+        .slide {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: none;
+            opacity: 0;
+            padding: 1.5rem;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .slide.active {
+            display: flex;
+            opacity: 1;
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+                filter: blur(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0);
+            }
+        }
+
+        .mega-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(3rem, 15vw, 8rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            line-height: 1;
+            background: linear-gradient(180deg, #fff 30%, #666 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* شريط التقدم السفلي */
+        .progress-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background: #fff;
+            width: 24px;
+            border-radius: 4px;
+        }
+
+        /* أزرار التنقل - مخفية في الجوال لتسهيل السحب */
+        @media (min-width: 1024px) {
+            .nav-controls {
+                display: flex;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .nav-controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="canvas-container"></div>
+
+    <!-- Header -->
+    <header class="fixed top-0 w-full p-6 z-[100] flex justify-between items-center">
+        <div>
+            <div class="font-black tracking-widest text-xl italic font-montserrat">ZONE</div>
+        </div>
+        <button onclick="toggleLang()" id="langBtn"
+            class="border border-white/20 px-4 py-1 rounded-full text-xs font-bold">EN</button>
+    </header>
+
+    <main class="relative h-screen w-full">
+        <!-- 01: HERO -->
+        <section class="slide active" id="s0">
+            <p class="text-[10px] tracking-[0.5em] text-white/50 mb-4 text-center uppercase" id="s0_t1">الجيل القادم من
+                الاقتصاد الجامعي</p>
+            <h1 class="mega-title italic">ZONE</h1>
+            <p class="text-sm tracking-[0.2em] opacity-70 mt-4 text-center uppercase" id="s0_t2">سيادة الموهبة والأثر
+            </p>
+        </section>
+
+        <!-- 02: PROBLEM -->
+        <section class="slide" id="s1">
+            <div class="glass-card">
+                <h2 class="text-3xl font-black mb-4 italic" id="s1_t">النموذج التقليدي يحتضر</h2>
+                <p class="text-sm opacity-70 leading-relaxed" id="s1_d">الجامعات تخرج آلاف الطلاب المجهزين بالنظريات،
+                    بينما السوق يبحث عن الممارسين. نحن نلغي الفجوة ونبني الممارس من اليوم الأول.</p>
+            </div>
+        </section>
+
+        <!-- 03: HUBS -->
+        <section class="slide" id="s2">
+            <h2 class="text-2xl font-black mb-6 italic" id="s2_t">المصفاة الرقمية</h2>
+            <div class="flex flex-col gap-4 w-full max-w-sm">
+                <div class="glass-card !p-4 flex items-center gap-4">
+                    <span class="text-2xl">⚙️</span>
+                    <div>
+                        <h3 class="font-bold text-sm" id="s2_h1">Engineering Hub</h3>
+                        <p class="text-[10px] opacity-50" id="s2_p1">بنية تحتية برمجية وذكاء اصطناعي.</p>
+                    </div>
+                </div>
+                <div class="glass-card !p-4 flex items-center gap-4">
+                    <span class="text-2xl">🎬</span>
+                    <div>
+                        <h3 class="font-bold text-sm" id="s2_h2">Studio Hub</h3>
+                        <p class="text-[10px] opacity-50" id="s2_p2">إنتاج سينمائي وهوية بصرية فاخرة.</p>
+                    </div>
+                </div>
+                <div class="glass-card !p-4 flex items-center gap-4">
+                    <span class="text-2xl">🧠</span>
+                    <div>
+                        <h3 class="font-bold text-sm" id="s2_h3">Academy Hub</h3>
+                        <p class="text-[10px] opacity-50" id="s2_p3">معسكرات نقل المعرفة بين النخبة.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 04: PROTOCOL -->
+        <section class="slide" id="s3">
+            <div class="glass-card">
+                <h2 class="text-3xl font-black mb-6 italic" id="s3_t">بروتوكول Alpha</h2>
+                <ul class="space-y-4 text-sm">
+                    <li class="flex items-center gap-3"><span
+                            class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px]">1</span>
+                        <span id="s3_l1">فحص المهارة (Vibe-Check)</span></li>
+                    <li class="flex items-center gap-3"><span
+                            class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px]">2</span>
+                        <span id="s3_l2">مشروع تجريبي (Proof of Work)</span></li>
+                    <li class="flex items-center gap-3 font-bold text-white"><span
+                            class="w-6 h-6 rounded-full bg-white flex items-center justify-center text-black text-[10px]">3</span>
+                        <span id="s3_l3">بطاقة النخبة (Alpha Pass)</span></li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 05: FINANCES -->
+        <section class="slide" id="s4">
+            <h2 class="text-2xl font-black mb-6 italic text-center" id="s4_t">الاستدامة المالية</h2>
+            <div class="glass-card mb-4 border-r-4 border-white">
+                <h3 class="font-bold mb-2" id="s4_h1">خدمات B2B</h3>
+                <p class="text-xs opacity-60" id="s4_p1">تنفيذ مشاريع حقيقية لشركات السلطنة بعوائد مالية للطلاب وللمنصة.
+                </p>
+            </div>
+            <div class="glass-card border-r-4 border-white/30">
+                <h3 class="font-bold mb-2" id="s4_h2">رعايات الاستحواذ</h3>
+                <p class="text-xs opacity-60" id="s4_p2">تمويل المعسكرات من الشركات الكبرى مقابل أولوية التوظيف.</p>
+            </div>
+        </section>
+
+        <!-- 06: IMPACT -->
+        <section class="slide" id="s5">
+            <h2 class="text-2xl font-black mb-8 italic" id="s5_t">الأثر الاستراتيجي</h2>
+            <div class="grid grid-cols-2 gap-4 w-full max-w-sm">
+                <div class="glass-card text-center !p-4">
+                    <div class="text-xl font-black">#1</div>
+                    <div class="text-[10px] opacity-50" id="s5_i1">الابتكار</div>
+                </div>
+                <div class="glass-card text-center !p-4">
+                    <div class="text-xl font-black">100%</div>
+                    <div class="text-[10px] opacity-50" id="s5_i2">توثيق</div>
+                </div>
+                <div class="glass-card text-center !p-4">
+                    <div class="text-xl font-black">+80%</div>
+                    <div class="text-[10px] opacity-50" id="s5_i3">توظيف</div>
+                </div>
+                <div class="glass-card text-center !p-4">
+                    <div class="text-xl font-black">ECO</div>
+                    <div class="text-[10px] opacity-50" id="s5_i4">اقتصاد</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 07: LEADERSHIP -->
+        <section class="slide" id="s6">
+            <div class="w-16 h-16 bg-white rounded-full mb-6 flex items-center justify-center">
+                <div class="w-12 h-12 border-2 border-black rounded-full animate-ping"></div>
+            </div>
+            <h2 class="text-3xl font-black italic mb-4" id="s6_t">قيادة الرؤية</h2>
+            <p class="text-xs tracking-widest text-center opacity-60 font-montserrat px-10">AL-BADI & AL-KAABI GROUP</p>
+        </section>
+
+        <!-- 08: JOIN -->
+        <section class="slide" id="s7">
+            <h1 class="mega-title italic mb-6">INIT</h1>
+            <p class="text-xs tracking-[0.3em] opacity-60 mb-8" id="s7_sub">العصر الجديد يبدأ يوم الأحد</p>
+            <button class="bg-white text-black px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest"
+                id="s7_btn">انضم للنخبة</button>
+        </section>
+    </main>
+
+    <!-- Navigation dots -->
+    <div class="progress-indicator" id="dots"></div>
+
+    <!-- Desktop controls -->
+    <div class="nav-controls fixed bottom-8 right-8 flex gap-4 z-[110]">
+        <button onclick="prev()"
+            class="w-12 h-12 border border-white/20 rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-all">←</button>
+        <button onclick="next()"
+            class="w-12 h-12 border border-white/20 rounded-full flex items-center justify-center hover:bg-white hover:text-black transition-all">→</button>
+    </div>
+
+    <script>
+        // State
+        let current = 0;
+        const slides = document.querySelectorAll('.slide');
+        const dotsContainer = document.getElementById('dots');
+        let lang = 'AR';
+
+        // Content
+        const content = {
+            AR: {
+                s0_t1: "الجيل القادم من الاقتصاد الجامعي", s0_t2: "سيادة الموهبة والأثر",
+                s1_t: "النموذج التقليدي يحتضر", s1_d: "الجامعات تخرج آلاف الطلاب المجهزين بالنظريات، بينما السوق يبحث عن الممارسين. نحن نلغي الفجوة ونبني الممارس من اليوم الأول.",
+                s2_t: "المصفاة الرقمية", s2_h1: "Engineering Hub", s2_p1: "بنية تحتية برمجية وذكاء اصطناعي.", s2_h2: "Studio Hub", s2_p2: "إنتاج سينمائي وهوية بصرية.", s2_h3: "Academy Hub", s2_p3: "معسكرات نقل المعرفة بين النخبة.",
+                s3_t: "بروتوكول Alpha", s3_l1: "فحص المهارة (Vibe-Check)", s3_l2: "مشروع تجريبي (Proof of Work)", s3_l3: "بطاقة النخبة (Alpha Pass)",
+                s4_t: "الاستدامة المالية", s4_h1: "خدمات B2B", s4_p1: "تنفيذ مشاريع حقيقية لشركات السلطنة بعوائد مالية للطلاب وللمنصة.", s4_h2: "رعايات الاستحواذ", s4_p2: "تمويل المعسكرات مقابل أولوية التوظيف.",
+                s5_t: "الأثر الاستراتيجي", s5_i1: "الابتكار", s5_i2: "توثيق المهارة", s5_i3: "توظيف مبكر", s5_i4: "اقتصاد مستدام",
+                s6_t: "قيادة الرؤية", s7_sub: "العصر الجديد يبدأ يوم الأحد", s7_btn: "انضم للنخبة"
+            },
+            EN: {
+                s0_t1: "NEXT-GEN CAMPUS ECONOMY", s0_t2: "SOVEREIGNTY OF TALENT & IMPACT",
+                s1_t: "TRADITIONAL MODEL IS DYING", s1_d: "Universities graduate theorists. The market needs practitioners. We build the future from day one.",
+                s2_t: "THE DIGITAL REFINERY", s2_h1: "Engineering Hub", s2_p1: "Software and AI infrastructure.", s2_h2: "Studio Hub", s2_p2: "Cinematic and Visual Identity.", s2_h3: "Academy Hub", s2_p3: "Peer-to-peer knowledge camps.",
+                s3_t: "ALPHA PROTOCOL", s3_l1: "Skill Vibe-Check", s3_l2: "Proof of Work", s3_l3: "Elite Alpha Pass",
+                s4_t: "FINANCIAL ENGINE", s4_h1: "B2B Services", s4_p1: "Real projects for Oman's market with direct student revenue.", s4_h2: "Acquisition Sponsoring", s4_p2: "Corporations fund talent camps for early hiring.",
+                s5_t: "STRATEGIC IMPACT", s5_i1: "Innovation", s5_i2: "Verified Skills", s5_i3: "Early Hiring", s5_i4: "Sustainable Eco",
+                s6_t: "VISION LEADERSHIP", s7_sub: "THE NEW ERA BEGINS SUNDAY", s7_btn: "JOIN THE ELITE"
+            }
+        };
+
+        // Create dots
+        slides.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = `dot ${i === 0 ? 'active' : ''}`;
+            dotsContainer.appendChild(dot);
+        });
+
+        function update() {
+            slides.forEach((s, i) => s.classList.toggle('active', i === current));
+            document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+        }
+
+        function next() { current = (current + 1) % slides.length; update(); }
+        function prev() { current = (current - 1 + slides.length) % slides.length; update(); }
+
+        function toggleLang() {
+            lang = lang === 'AR' ? 'EN' : 'AR';
+            document.documentElement.dir = lang === 'AR' ? 'rtl' : 'ltr';
+            document.getElementById('langBtn').innerText = lang === 'AR' ? 'EN' : 'AR';
+            const c = content[lang];
+            for (let id in c) {
+                const el = document.getElementById(id);
+                if (el) el.innerText = c[id];
+                // Check for classes if ID not found
+                const clsEls = document.querySelectorAll('.' + id);
+                clsEls.forEach(cel => cel.innerText = c[id]);
+            }
+        }
+
+        // Swipe Logic (Essential for Mobile)
+        let touchStart = 0;
+        let touchEnd = 0;
+        document.addEventListener('touchstart', e => touchStart = e.changedTouches[0].screenY);
+        document.addEventListener('touchend', e => {
+            touchEnd = e.changedTouches[0].screenY;
+            if (touchStart - touchEnd > 50) next();
+            if (touchEnd - touchStart > 50) prev();
+        });
+
+        // Lightweight 3D
+        const init3D = () => {
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true }); // Faster
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            const geo = new THREE.BufferGeometry();
+            const count = 500;
+            const pos = new Float32Array(count * 3);
+            for (let i = 0; i < count * 3; i++) pos[i] = (Math.random() - 0.5) * 10;
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({ size: 0.02, color: 0xffffff });
+            const points = new THREE.Points(geo, mat);
+            scene.add(points);
+
+            camera.position.z = 2;
+
+            function anim() {
+                requestAnimationFrame(anim);
+                points.rotation.y += 0.001;
+                renderer.render(scene, camera);
+            }
+            anim();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        window.onload = init3D;
+    </script>
+</body>
+
+</html>
